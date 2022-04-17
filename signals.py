@@ -1,7 +1,7 @@
 from math import sqrt
 
 
-def fourier(window) -> float:
+def fourier(window: list) -> float:
     """
     :param window: список - окно, длиной в 1 ППЧ, по которому считается действующее значение
     :return: действующее значение сигнала по окну в 1 ППЧ
@@ -20,8 +20,7 @@ def config_parser(config_lines: list) -> list:
                             :-1])  # Из строки вычленим количество аналоговых сигналов в записи и преобразуем в целое число
 
     coefs = list()
-    for i in range(2,
-                   2 + analogue_channels):  # опишем цикл, в котором сформируем словарь поправочных коэффициентов для каждого сигнала
+    for i in range(2, 2 + analogue_channels):  # опишем цикл, в котором сформируем словарь поправочных коэффициентов для каждого сигнала
         data = config_lines[i].split(',')
         coefs.append((float(data[5]), float(data[6])))
 
@@ -50,6 +49,16 @@ def signal_converter(data_lines: list, coefs: list) -> object:
                        len(parsed_line)):  # добавим все сигналы из текущей строки, преобразовав значения по формуле aX + b
             kwargs[f'signal_{i - 2}'].append(int(parsed_line[i]) * coefs[i - 2][0] + coefs[i - 2][1])
     return Signals(**kwargs)
+
+
+def _get_signal_generator(values) -> object:
+    """
+    Метод, создающий генератор для доступа к данным из списка кортежей измерений по одному измерению за обращение next
+    :return:
+    """
+    for value in values:
+        yield value # возвращает следующий кортеж с измерениями, начиная с нулевого в списке, при обращении через next
+        # Выбрасывает исключение StopIteration, когда в списке нет больше данных
 
 
 class Signals:
@@ -85,24 +94,25 @@ class Signals:
                 right += 1
 
     def _transform_for_gen(self) -> list:
-        values = list()
-        for i in range(len(self.time)):
-            row = list()
-            for attr_key, attr_value in self.__dict__.items():
-                if 'time' in attr_key or 'rms' in attr_key:
-                    row.append(attr_value[i])
-            values.append(tuple(row))
+        """
+        Метод для преобразования атрибутов классов в список кортежей
+        :return: список кортежей по числу измерений в .dat файле
+        """
+        values = list() # создаем пустой список, который будем возвращать
+        for i in range(len(self.time)): # цикл по кол-ву элементов
+            row = list() # создаем пустой список под каждое измерение
+            for attr_key, attr_value in self.__dict__.items(): # цикл по атрибутам класса
+                if 'time' in attr_key or 'rms' in attr_key: # если в названии атрибута есть time или rms
+                    row.append(attr_value[i]) # добавляем в список-строчку
+            values.append(tuple(row)) # преобразуем в список-строчку в кортеж и добавляем в итоговый список
         return values
 
-    def _get_signal_generator(self, values) -> object:
+    def prepare(self) -> object:
         """
-        Метод, создающий генератор для доступа к
-        :return:
+        Метод, в котором производятся все базовые преобразования и из сырых данных .dat-файла получается генератор,
+        "выплевывающий" кортежи с измерениями
+        :return: генератор, который возвращает кортежи измерений действующих значений сигналов
         """
-        for value in values:
-            yield value
-
-    def prepare_signals(self):
         self._calculate_rms()
         values = self._transform_for_gen()
-        return self._get_signal_generator(values)
+        return _get_signal_generator(values)
