@@ -22,11 +22,11 @@ class Transformer:
                     after_tr.append(before_tr[i]) # добавляем метку времени
                 else:
                     after_tr.append(before_tr[i] * 1000 / self.transform_rates[i-1]) # добавляем значение измерения из канала с пересчетом
-            return tuple(after_tr) # преобразуем в кортеж
+            return list(after_tr) # преобразуем в кортеж
         else:
             to_zero = next(self.signal) # если выключатель разомкнут, все также считываем измерения из генератора
             time = to_zero[0] # считываем метку времени из кортежа измерений
             zeroed = list()
             zeroed.append(time) # добавляем метку времени в пустой список
             zeroed.extend([0 for _ in range(1, len(to_zero))]) # добавим ноликов по числу каналов в кортеже измерений
-            return tuple(zeroed) # преобразуем в кортеж
+            return list(zeroed) # преобразуем в кортеж
